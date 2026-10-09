@@ -43,17 +43,17 @@ const ChapterEditor=forwardRef<ChapterEditorHandle,{chapterId:string;onSaved?:(v
   }catch(e){setMessage((e as Error).message);setState('error')}
  },[chapterId]);
  useEffect(()=>{currentChapter.current=chapterId;version.current=0;pending.current=false;blocked.current=true;setDraft(null);setState('saved');void reload();return()=>{blocked.current=true}},[chapterId,reload]);
- const save=useCallback(async()=>{
+ const save=useCallback(async():Promise<boolean>=>{
   const e=editorRef.current;if(!e||!draft||busy.current||blocked.current)return false;
   if(!pending.current)return true;
   const target=chapterId;const content=normalizeImageAttrs(e.getJSON() as Doc);const snapshot=JSON.stringify(content);
   if(snapshot===lastSaved.current){pending.current=false;setState('saved');return true}
   busy.current=true;setState('saving');
   try{const result=await api<{data:Draft}>(`chapters/${target}/draft`,json('PUT',{version:version.current,content}));
-   if(currentChapter.current!==target)return;
+   if(currentChapter.current!==target)return false;
    version.current=result.data.version;if(result.data.media){mediaRef.current=result.data.media;setMedia(result.data.media)}lastSaved.current=snapshot;setDraft(result.data);onSaved?.(result.data.version);
    pending.current=JSON.stringify(normalizeImageAttrs(editorRef.current?.getJSON() as Doc))!==snapshot;setState(pending.current?'dirty':'saved');setMessage('');return !pending.current;
-  }catch(err){if(currentChapter.current!==target)return;
+  }catch(err){if(currentChapter.current!==target)return false;
    if(err instanceof ApiError&&err.status===409){blocked.current=true;setState('conflict');setMessage('Черновик изменился в другой вкладке или устройстве. Твои изменения не перезаписаны. Скопируй нужный текст перед загрузкой серверной версии.');}
    else{setState('error');setMessage((err as Error).message)}
    return false;
