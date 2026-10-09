@@ -1,0 +1,12 @@
+'use client';import {useEffect,useState} from 'react';import Link from 'next/link';import {useRouter} from 'next/navigation';import {api,json,mediaUrl} from '@/lib/api';import type {Work,User} from '@/lib/types';
+function DashboardCover({work,index}:{work:Work;index:number}){
+ const [failed,setFailed]=useState(false);
+ const url=mediaUrl(work.cover_thumb_url || work.cover_url);
+ return <div className={`cover cover${index%4}`}>
+  {url && !failed ? <img className="dashboard-cover-image" src={url} alt={`Обложка произведения «${work.title}»`} loading="lazy" onError={()=>setFailed(true)}/> : <><span>{String(index+1).padStart(2,'0')}</span><strong>{work.title}</strong></>}
+ </div>;
+}
+export default function Dashboard(){const router=useRouter();const [works,setWorks]=useState<Work[]>([]);const [user,setUser]=useState<User|null>(null);const [error,setError]=useState('');const [title,setTitle]=useState('');const [creating,setCreating]=useState(false);
+async function load(){try{const [w,u]=await Promise.all([api<{data:Work[]}>('works'),api<{data:User}>('auth/me')]);setWorks(w.data);setUser(u.data)}catch(e){if((e as {status?:number}).status===401)router.replace('/login');else setError((e as Error).message)}}useEffect(()=>{void load()},[]);
+async function create(e:React.FormEvent){e.preventDefault();setCreating(true);try{const result=await api<{data:Work}>('works',json('POST',{title}));router.push(`/works/${result.data.id}`)}catch(e){setError((e as Error).message)}finally{setCreating(false)}}
+return <main className="container"><div className="eyebrow">РАБОЧЕЕ ПРОСТРАНСТВО {user?.name?.toUpperCase()}</div><div className="pagehead"><div><h1>Мои произведения<span className="accent">.</span></h1><p className="muted">Все ваши истории в одном месте.</p></div></div><form className="inlineform" onSubmit={create}><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Название новой истории" required maxLength={200}/><button className="button" disabled={creating}>+ Создать</button></form>{error&&<p className="error">{error}</p>}<div className="workgrid">{works.map((work,i)=><Link className="workcard" href={`/works/${work.id}`} key={work.id}><DashboardCover work={work} index={i}/><div className="workmeta"><span>{work.status==='ongoing'?'В процессе':work.status==='completed'?'Завершено':'Пауза'}</span><h3>{work.title}</h3><p>{work.description||'Описание ещё не добавлено'}</p></div></Link>)}</div>{!works.length&&!error&&<div className="empty">Здесь пока тихо. Самое время начать первую историю.</div>}</main>}
